@@ -10,11 +10,13 @@ Remove arbitraty objects from given pool, multithreaded! This is potentially dan
 Big warning here, this will actually remove stuff from given pool, without asking, this is dangerous and I cannot be held responsible for any damage this script does in any way.
 
 ### Usage example
-yes, the 2 first steps could potentially be just 1 step, but it isn't
+Yes, this could potentially be just two lines, but it's not
+
 ```
 radosgw-admin --cluster $CLUSTER_NAME find --pool $POOL_NAME --num-shards=$SOME_GOOD_NUMBER --job-id=$GOOD_ID_NAME >> orphans_log.log
 # ...wait, for a long time
 grep -E '^leaked:\ .*' orphans_log.log > awesome_list.out
+sed -i 's/^[lL]eaked:\ //' awesome_list.out
 # review awesome_list.out
 rados_multi_remove.py -f awesome_list.out -p $POOL_NAME -c $CEPH_CONFIG_FILE -t $NUM_THREADS
 ```
