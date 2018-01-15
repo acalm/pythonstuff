@@ -15,7 +15,7 @@ Yes, this could potentially be just two lines, but it's not
 ```
 radosgw-admin --cluster $CLUSTER_NAME find --pool $POOL_NAME --num-shards=$SOME_GOOD_NUMBER --job-id=$GOOD_ID_NAME >> orphans_log.log
 # ...wait, for a long time
-grep -E '^leaked:\ .*' orphans_log.log > awesome_list.out
+grep -iE '^leaked:\ .*' orphans_log.log > awesome_list.out
 sed -i 's/^[lL]eaked:\ //' awesome_list.out
 # review awesome_list.out
 rados_multi_remove.py -f awesome_list.out -p $POOL_NAME -c $CEPH_CONFIG_FILE -t $NUM_THREADS
