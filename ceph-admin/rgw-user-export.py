@@ -11,15 +11,14 @@ def get_keys(**kwargs):
         'filename': None
     }
     opts.update(kwargs)
-    rv = None
 
     with open(opts['filename'], 'r') as f:
-        json_data = json.load(f)
+        rv = json.load(f)
 
-    if 'access_key' in json_data and 'secret_key' in json_data:
-        rv = json_data
-    else:
-        logging.error('no credentials found in {0}'.format(opts['file']))
+    for k in ['source', 'destination']:
+        if k not in rv.keys():
+            logging.error('missing {0} in {1}'.format(k, opts['filename']))
+            return None
 
     return rv
 
@@ -95,17 +94,11 @@ def main():
         help='Log output to file'
     )
     parser.add_argument(
-        '-e',
-        '--export-keyring',
-        dest='export_keys_file',
-        help='File containing keys used for exporting users'
-    )
-    parser.add_argument(
-        '-i',
-        '--import-keyring',
-        dest='import_keys_file',
+        '-k',
+        '--key-file',
+        dest='key_file',
         required=True,
-        help='File containing keys used for importing users'
+        help='Json file containing keys used for import/export users'
     )
     parser.add_argument(
         '-s',
@@ -118,7 +111,7 @@ def main():
         '-t',
         '--dest-rgw',
         dest='dest_rgw',
-        required=True,
+        default=None,
         help="destination rgw"
     )
     parser.add_argument(
@@ -140,7 +133,7 @@ def main():
         dest='disable_tls',
         action='store_true',
         default=False,
-        help='Do not use TLS encryption, because weird reasons'
+        help='Do not use TLS encryption... because reasons'
     )
     args = parser.parse_args()
     use_tls = True
@@ -163,10 +156,13 @@ def main():
         use_tls = False
         logging.warning('not using tls encryption for rgw communication, everything in plain text, good luck!')
 
-    src_keys = get_keys(filename=args.export_keys_file)
+    keys = get_keys(filename=args.key_file)
+    if not keys:
+        sys.exit('failed getting credentials, check {0}'.format(args.key_file))
+
     src_rgw=connect_rgw(
         rgw_server=args.source_rgw,
-        keys=src_keys,
+        keys=keys['source'],
         ca_bundle=args.ca_bundle,
         use_tls=use_tls
     )
@@ -176,8 +172,11 @@ def main():
 
     src_users = get_users(rgw=src_rgw, exclude_users=args.exclude_users)
     users_metadata = [get_user_metadata(uid=u, rgw=src_rgw) for u in src_users]
-    for u in users_metadata:
-        logging.info(u)
-    
+    if not args.dest_rgw:
+        out_name = '{0}.json'.format(args.source_rgw.split(':')[0])
+        logging.info('no destination rgw given, dumping to {0}'.format(out_name))
+        with open(out_name, 'w') as f:
+            json.dump(users_metadata, f, indent=4, sort_keys=True)
+        sys.exit()
 if __name__ == '__main__':
     main()
