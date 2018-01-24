@@ -2,7 +2,6 @@
 import rgwadmin
 import logging
 import argparse
-import os
 import json
 import sys
 
