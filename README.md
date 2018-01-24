@@ -25,3 +25,7 @@ sed -i 's/^[lL]eaked:\ //' awesome_list.out
 # review awesome_list.out
 rados_multi_remove.py -f awesome_list.out -p $POOL_NAME -c $CEPH_CONFIG_FILE -t $NUM_THREADS
 ```
+## ceph-admin/rgw_user_export.py
+export/import rgw users. If no destination rgw is given, dump all users from source rgw into a json file.
+### Dependencies
+* rgwadmin (https://github.com/UMIACS/rgwadmin)
