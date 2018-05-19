@@ -6,7 +6,7 @@ Simple script to expose ceph health details through a flask web application for 
 * python-rados (rpm/deb)
 * python-flask (standard ceph-mgr installation pulls this as a dependency)
 ## ceph-admin/rados_multi_remove.py
-Remove arbitraty objects from given pool, multithreaded!
+Remove arbitrary objects from given pool, multithreaded!
 
 This is dangerous, script will blindly assume that each line in the given file is the absolute path to an object that should be removed in given pool. which might seem insane, and it kind of is, but the radosgw-admin command doesn't have any way of removing orphans found with the 'orphans find' command.
 
