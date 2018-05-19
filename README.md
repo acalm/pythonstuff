@@ -18,7 +18,7 @@ Mandatory warning: this will actually remove stuff from given pool, without aski
 Yes, this could potentially be just two lines, but it's not
 
 ```
-radosgw-admin --cluster $CLUSTER_NAME find --pool $POOL_NAME --num-shards=$SOME_GOOD_NUMBER --job-id=$GOOD_ID_NAME >> orphans_log.log
+radosgw-admin --cluster $CLUSTER_NAME orphans find --pool $POOL_NAME --num-shards=$SOME_GOOD_NUMBER --job-id=$GOOD_ID_NAME >> orphans_log.log
 # ...wait, for a long time
 grep -iE '^leaked:\ .*' orphans_log.log > awesome_list.out
 sed -i 's/^[lL]eaked:\ //' awesome_list.out
