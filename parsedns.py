@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import datetime
 import json
 import logging
 import os
@@ -78,10 +79,11 @@ def parse_zone(data, rm_blank=True, rm_only_comment=True):
             rec_l.append(record)
             continue
 
-        if not record.get('owner-name'):  # naively try to prevent moronic inheritance
+        if not record.get('owner-name') and any([record[k] for k in record.keys() if k != 'comment']):  # naively try to prevent moronic inheritance
             if rec_l and rec_l[-1].get('owner-name') and not rec_l[-1].get('owner-name').startswith('$'):
-                logging.info('fix sloppy inheritance in {0}'.format(record))
+                logging.info('sloppy inheritance in {0}'.format(record))
                 record['owner-name'] = rec_l[-1].get('owner-name')
+                logging.info('fixed sloppy inheritance {0}'.format(record))
         rec_l.append(record)
 
     rv['records'] = rec_l
@@ -130,15 +132,18 @@ def _format_record_line(line):
         return rv
 
     for idx, val in enumerate(line):
-        if ttl_rx.match(val) and idx <= 1:
-            rv['ttl'] = val
-            continue
-
         if val in classes:
             rv['class'] = val
             continue
 
         if val in types:
+            for n, i in enumerate(line):
+                if ttl_rx.match(i) and n < idx:
+                    logging.info('found ttl in line: {0}'.format(line))
+                    rv['ttl'] = i
+                    break
+                if n >= idx:
+                    break
             rv['type'] = val
             rv['data'] = ' '.join(line[idx+1:])
             continue
@@ -177,6 +182,25 @@ def get_default_origin_ttl(data):
 
     return rv
 
+def _update_serial(serial, date_serial=True):
+    rv = None
+    utc_ydm = datetime.datetime.utcnow().strftime('%Y%m%d')
+    serial_s = str(serial)
+
+    if not date_serial:
+        return int(serial_s) + 1
+
+    if len(serial_s[:-2]) != len(utc_ydm):
+        logging.error('serial length {0} - 2 from serial {1} doesn\'t match length of current utc datestamp: {2}'.format(serial_s[:-2], serial, utc_ymd))
+        return rv
+
+    if serial_s[:-2] != utc_ydm:
+        rv = int('{0}{1}'.format(utc_ydm, '00'))
+    else:
+        rv = int(serial_s) + 1
+
+    return rv
+
 
 def rm_comments(data):
     rx_comment = ';.*'
@@ -194,12 +218,31 @@ def get_args():
         dest='zone_file',
         help='zone file to parse'
     )
+
+    parser.add_argument(
+        '-v',
+        action='count',
+        default=0,
+        dest='verbose',
+        help='verbose output, increase amount of v\'s for verbosity'
+    )
     rv = parser.parse_args()
     return rv
 
 
 def main():
     args = get_args()
+
+    log_level = logging.WARN
+    if args.verbose == 1:
+        log_level = logging.INFO
+    if args.verbose > 1:
+        log_level = logging.DEBUG
+
+    logging.basicConfig(
+        format='%(asctime)s - %(name)s - %(levelname)s %(message)s',
+        level=log_level
+    )
 
     if not os.path.isfile(args.zone_file):
         logging.error('{0} doesn\'t exist or isn\'t file'.format(args.zone_file))
@@ -209,8 +252,7 @@ def main():
         data = fd.read()
 
     zone_d = parse_zone(data, True, False)
-    print(json.dumps(zone_d, indent=4))
-
+    logging.info(_update_serial(zone_d['soa']['serial']))
 
 if __name__ == '__main__':
     main()
