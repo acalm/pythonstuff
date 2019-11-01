@@ -1,12 +1,36 @@
 #!/usr/bin/env python3
 import argparse
 import datetime
+import jinja2
 import json
 import logging
 import os
 import re
 import sys
 
+_ZONE_TEMPLATE_STR = '''
+{%- if zone_data.defaults.origin %}
+$ORIGIN {{ zone_data.defaults.origin }}
+{% endif %}
+$TTL {{ zone_data.defaults.ttl or '300' }}
+
+{{ zone_data['soa']['owner-name'] }} {{ zone_data['soa']['ttl'] or '' }} IN SOA {{ zone_data['soa']['name-server'] }} {{ zone_data['soa']['email-addr'] }} (
+        {{ zone_data['soa']['serial'] }}
+        {{ zone_data['soa']['refresh'] }}
+        {{ zone_data['soa']['retry'] }}
+        {{ zone_data['soa']['expiry'] }}
+        {{ zone_data['soa']['nx']}}
+)
+
+{% for record in zone_data['records'] %}
+{% if not record['type'] and not record['data'] and record['comment'] %}
+{{ record['comment'] }}
+{% elif record['owner-name'] and  record['owner-name'].startswith('$') %}
+{{ record['owner-name'] }} {{ record['data'] }}
+{% else %}
+{{ record['owner-name'] or '' }} {{ record['ttl'] or '' }} {{ record['class'] or 'IN' }} {{ record['type'] }} {{ record['data'] }} {{ record['comment'] or '' }}
+{% endif %}
+{% endfor %}'''
 
 def cut_soa(data):
     rv = None
@@ -82,8 +106,9 @@ def parse_zone(data, rm_blank=True, rm_only_comment=True):
         if not record.get('owner-name') and any([record[k] for k in record.keys() if k != 'comment']):  # naively try to prevent moronic inheritance
             if rec_l and rec_l[-1].get('owner-name') and not rec_l[-1].get('owner-name').startswith('$'):
                 logging.info('sloppy inheritance in {0}'.format(record))
-                record['owner-name'] = rec_l[-1].get('owner-name')
-                logging.info('fixed sloppy inheritance {0}'.format(record))
+                if rec_l[-1].get('owner-name') != '@':
+                    record['owner-name'] = rec_l[-1].get('owner-name')
+                    logging.info('fixed sloppy inheritance {0}'.format(record))
         rec_l.append(record)
 
     rv['records'] = rec_l
@@ -104,8 +129,8 @@ def _format_record_line(line):
                 'A', 'AAAA', 'AFSDB', 'CNAME', 'CAA', 'DNAME', 'DNSKEY', 'DS',
                 'EUI48', 'EUI64', 'HINFO', 'ISDN', 'KEY', 'LOC', 'MX', 'NAPTR',
                 'NS', 'NSEC', 'NXT', 'PTR', 'RP', 'RRSIG', 'RT', 'RSIG', 'RT',
-                'SIG', 'SOA', 'SPF', 'SOA', 'SPF', 'SRV', 'TXT', 'TYPE257',
-                'URI', 'WKS', 'X25'
+                'SIG', 'SOA', 'SOA', 'SPF', 'SRV', 'TXT', 'TYPE257', 'URI',
+                'WKS', 'X25'
             ]
     comment_rx = re.compile(';.*')
     ttl_rx = re.compile('^((\d+[h|m|s|w|y])*)$|^\d+$', re.I)  # this is fragile ...and possibly wrong
@@ -182,6 +207,7 @@ def get_default_origin_ttl(data):
 
     return rv
 
+
 def _update_serial(serial, date_serial=True):
     rv = None
     utc_ydm = datetime.datetime.utcnow().strftime('%Y%m%d')
@@ -208,8 +234,38 @@ def rm_comments(data):
     return rv
 
 
+def write_zone_file(zone_data, path):
+    '''
+    write contents in zone_data (dict) to a zone file
+    :param zone_data: dict containing the zone data
+    :param path: path where data should be written
+    '''
+    _default_filename = 'no_origin.clown'
+    j2env = jinja2.Environment(loader=jinja2.BaseLoader, trim_blocks=True, lstrip_blocks=True)
+    zone_template = j2env.from_string(_ZONE_TEMPLATE_STR)
+
+    if os.path.isdir(path):
+        logging.info('{0} is a directory'.format(path))
+        f_name = zone_data['defaults'].get('origin')
+
+        if not f_name:
+            logging.warning('no origin set for zone, will use {0}'.format(_default_filename))
+            path = os.path.join(path, _default_filename)
+        else:
+            path = os.path.join(path, f_name)
+
+    if os.path.exists(path):
+        logging.warning('{0} already exists, will blindly overwtite. good luck!'.format(path))
+
+    with open(path, 'w') as fd:
+        zone_file_r = zone_template.render(zone_data=zone_data)
+        fd.write(zone_file_r)
+
+
+
 def get_args():
     rv = None
+    default_output_dir = os.environ.get('HOME')
     parser = argparse.ArgumentParser()
     parser.add_argument(
         '-z',
@@ -218,13 +274,19 @@ def get_args():
         dest='zone_file',
         help='zone file to parse'
     )
-
     parser.add_argument(
         '-v',
         action='count',
         default=0,
         dest='verbose',
         help='verbose output, increase amount of v\'s for verbosity'
+    )
+    parser.add_argument(
+        '-o',
+        '--output',
+        default=default_output_dir,
+        dest='output',
+        help='output, write zone files here, if target is a directory script will use $ORIGIN as filename. default: {0}'.format(default_output_dir)
     )
     rv = parser.parse_args()
     return rv
@@ -251,8 +313,8 @@ def main():
     with open(args.zone_file, 'r') as fd:
         data = fd.read()
 
-    zone_d = parse_zone(data, True, False)
-    logging.info(_update_serial(zone_d['soa']['serial']))
+    zone_d = parse_zone(data, True, True)
+    write_zone_file(zone_d, args.output)
 
 if __name__ == '__main__':
     main()
