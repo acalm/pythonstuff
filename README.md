@@ -1,5 +1,10 @@
 # pythonstuff
 misc python stuff
+## check_me4.py
+nagios compatible plugin for checking Dell EMC ME4 series storage array health
+### dependencies
+* python3
+* requests
 ## dnf_autoupdate.py and yum_autoupdate.py
 scripts for auto updating centos/rhel (dnf or yum), supports running arbitrary pre/post update scripts, for fun and profit!
 ## ceph-health
