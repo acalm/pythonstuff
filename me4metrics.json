@@ -1,0 +1,23 @@
+{
+    "buffer_file": "/var/metricbrf/metricbrf_failed.json",
+    "graphite": {
+        "address": "carbon.domain.tld",
+        "port": 2003,
+        "retries": 3,
+        "timeout": 5
+    },
+    "metric_sources": [
+        {
+            "address": "me4array1.domain.tld",
+            "ignore_empty": true,
+            "interval": 60,
+            "password": "!monitor",
+            "port": 443,
+            "protocol": "https",
+            "type": "me4",
+            "username": "monitor"
+        }
+    ],
+    "pidfile": "/var/run/me4metrics.pid",
+    "verify_certs": true
+}
