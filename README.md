@@ -1,5 +1,7 @@
 # pythonstuff
 misc python stuff
+## me4metrics.py
+send metrics from dell emc me4 arrays to carbon/graphite, example configuration in me4metrics.json
 ## check_me4.py
 nagios compatible plugin for checking Dell EMC ME4 series storage array health
 ### dependencies
