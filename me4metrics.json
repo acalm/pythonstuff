@@ -1,5 +1,5 @@
 {
-    "buffer_file": "/var/me4metrics_failed.json",
+    "buffer_file": "/var/me4metrics/me4metrics_failed.json",
     "graphite": {
         "address": "carbon.domain.tld",
         "port": 2003,
